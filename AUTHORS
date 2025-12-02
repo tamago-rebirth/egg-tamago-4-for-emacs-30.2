@@ -1,0 +1,51 @@
+KAWABATA, Taichi  <kawabata@exa.onlab.ntt.co.jp>
+	Menudiag improvement.
+
+MORIOKA Tomohiko  <tomo@etl.go.jp>
+	Use of custom.
+
+NIIBE Yutaka <gniibe@chroot.org>
+	Design a part of ITS programming.
+	Wrote ITS:
+	    its.el
+	    its/hira.el
+	Wrote tamago.el, menudiag.el, tamago-cnv.el, tamago-comm.el,
+	and tamago-mlh.el.
+	Wrote backend conversion engine interface:
+	    SJ3: tamago-lib/sj3.el, tamago-lib/sj3rpc.el,
+	    WNN: tamago-lib/wnn.el, and tamago-lib/wnnrpc.el.
+
+KATAYAMA Yoshio <kate@pfu.co.jp>
+	Design ITS programming.
+	Wrote its/hangul.el, its/erpin.el, its/pinyin.el, 
+	its/thai.el, and its/zhuyin.el.
+
+Satoru Tomura <tomura@etl.go.jp>
+	Designer/Implementor/Maintainer of EGG through V3.0.
+	Discussion/Design around ITS.
+	Suggestion around how to write code in LISP.
+
+Hisashi Miyashita <himi@bird.scphys.kyoto-u.ac.jp>
+	Wrote CCL routines in tamago-com.el.
+
+
+---
+
+Chiaki Ishikawa modified the code to install and run under emacs 30.2
+
+       Emacs 30.2's very eager macroexpand caused problems for
+       compilation, etc.  Fixed the problem. But decided to run the
+       code un-compiled.  This makes the debugging much easier. It
+       used to be that we need to quit Emacs to make the changes in
+       egg/Tamago code to take effect.  This was caused through the
+       maze of when-compile, and other compile-time macros.
+
+       Introduced compatibility functions to transition to newer
+       encode-coding-string, decode-coding-string from str-as-* to get
+       ready for the future.
+
+       There were a few issues concerning the use of array as obarray,
+       which is used as poor man's hash table. Fixed that by
+       initializing the array with proper value.
+       
+

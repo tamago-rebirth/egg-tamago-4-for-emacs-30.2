@@ -1,0 +1,11 @@
+*~
+.git
+config.status
+*.elc
+*.orig
+*.rej
+*.gz
+config.log
+config.cache
+t.diff
+TAGS

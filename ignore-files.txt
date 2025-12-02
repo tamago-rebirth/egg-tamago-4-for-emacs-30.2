@@ -1,0 +1,33 @@
+This is used for checking files between different egg/TAMAGO distribution.
+diff -uibwr --exclude-from=ignore-files.txt  . ~/repos/tamago-tsunagi/
+diff -ubiwr --exclude-from=ignore-files.txt  ~/bin/TAMAGO-DIR/tamago-4.0.6-APR-2013-Emacs-24.3-DIR/ .
+*~
+.git
+autom4te.cache
+output.1
+output.2
+TAGS
+COMMIT_EDITMSG
+./.git/COMMIT_EDITMSG
+./.git
+./.git/*
+.git/*
+./.git/*/*
+config.status
+configure
+configure.in
+AUTHORS
+ChangeLog
+ChangeLog.0
+ignore-files.txt
+COPYING
+Makefile
+Makefile.in
+config.log
+*.elc
+config.cache
+t.diff
+*.el.orig
+*.el.rej
+*.orig
+*.rej

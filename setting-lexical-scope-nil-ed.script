@@ -1,0 +1,4 @@
+/binding: t/p
+s//binding: nil/p
+w
+q

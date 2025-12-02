@@ -1,0 +1,9 @@
+Define defgroup properly in egg.el:
+
+	(defgroup egg '((egg-default-language 'custom-variable)
+                )
+  "Tamago Version 4.xyz")
+;(defgroup egg nil
+;  "Tamago Version 5.")
+
+

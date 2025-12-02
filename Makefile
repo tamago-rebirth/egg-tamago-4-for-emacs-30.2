@@ -1,0 +1,168 @@
+# Makefile --- Makefile of EGG V4.0+Tamgo Tsunagi
+
+# Copyright (C) 1999, 2000 Free Software Foundation, Inc
+# Author: NIIBE Yutaka <gniibe@chroot.org>
+#         TOMURA Satoru <tomura@etl.go.jp>
+#
+# Modified by Chiaki Ishikawa
+# Some files for compatibility wrappers have been added.
+
+.SUFFIXES:
+SHELL	= /bin/bash
+
+#------------------------------------------------
+#  Configuration parameters
+#------------------------------------------------
+# emacs you use
+EMACS	= emacs
+# emacs lisp installation directory
+lispdir	= /usr/local/share/emacs/site-lisp
+#------------------------------------------------
+
+prefix	= /usr/local
+INSTALL = /usr/bin/install -c
+INSTALL_PROGRAM = ${INSTALL}
+INSTALL_SCRIPT = ${INSTALL}
+INSTALL_DATA = ${INSTALL} -m 644
+INSTALL_INFO = install-info
+
+#---------------------------------------
+# (1) make
+#       ;; compile *.el files
+# (2) make install
+#       ;; install files into the emacs site-lisp directory
+#       ;; ex. /usr/local/share/emacs/site-lisp/egg
+
+DEPS	= -l ./docomp.el -l ./jisx0213.el
+BATCHFLAGS	= -batch -q -no-site-file -no-init-file
+
+ETCS	= Makefile docomp.el \
+	AUTHORS ChangeLog README TODO PROBLEMS
+
+INITELS	= eggrc leim-list.el
+
+#
+# Move the files which produce emacs compiler warnings toward the end.
+# 
+SRCS	=  ${EGGSRCS} ${ITSSRCS} ${TOPSRCS}
+
+
+
+#
+# Reorder files so that files that generate compiler warning come last 
+# 
+TOPSRCS	= \
+	egg-edep.el \
+	egg-com.el \
+	egg-cnv.el \
+	egg-util.el \
+	egg-mlh.el \
+	egg-sim.el \
+	menudiag.el \
+	its-keydef.el \
+	egg-integration-dual-diff.el \
+	egg-integration-verify.el \
+	egg-string-as-mode-test.el \
+	egg-integration-tests.el \
+	egg.el \
+	its.el \
+	egg-compatibility.el \
+	verify-egg-string-as.el \
+
+
+
+#
+EGGSRCS	= \
+	egg/cannarpc.el egg/canna.el \
+	egg/sj3rpc.el egg/sj3.el \
+	egg/wnnrpc.el egg/wnn.el \
+
+#
+ITSSRCS	= \
+	its/ascii.el \
+	its/aynu.el \
+	its/bixing.el \
+	its/erpin.el \
+	its/hankata.el \
+	its/hira.el \
+	its/jeonkak.el \
+	its/pinyin.el \
+	its/hangul.el \
+	its/kata.el \
+	its/thai.el \
+	its/quanjiao.el \
+	its/zenkaku.el \
+	its/zhuyin.el \
+
+#
+ELCS	= ${SRCS:.el=.elc}
+
+TOPELCS	= ${TOPSRCS:.el=.elc}
+
+EGGELCS	= ${EGGSRCS:.el=.elc}
+
+ITSELCS	= ${ITSSRCS:.el=.elc}
+
+DIST	= ${ETCS} ${SRCS} ${INITELS}
+
+all: ${ELCS} TAGS
+
+.SUFFIXES: .el .elc
+
+.el.elc:
+	${EMACS} ${BATCHFLAGS} ${DEPS} -f batch-byte-compile $<
+
+clean: 
+	rm -f ${ELCS} *~ */*~ \#* .\#* */\#* */.\#*
+
+distclean: 
+	rm -f ${ELCS} config.* Makefile 
+
+install: install-site
+
+TAGS: ${TOPSRCS} ${EGGSRCS} ${ITSSRCS} Makefile
+	etags ${TOPSRCS} ${EGGSRCS} ${ITSSRCS}
+
+install-site: all
+	echo "Egg system will be installed in ${lispdir}/egg...."; \
+	if [ -d ${lispdir}/egg ]; then \
+	  echo "Clean up the previsous installation...."; \
+	  rm -rf ${lispdir}/egg/*;  \
+	else \
+	  echo "Make the directory ${lispdir}/egg..."; \
+	  mkdir ${lispdir}/egg; \
+	fi; \
+#
+	for FILE in ${TOPSRCS} ${INITELS}; \
+	  do  \
+	    ${INSTALL_DATA}  $${FILE} ${lispdir}/egg/; \
+	  done; \
+#
+	mkdir ${lispdir}/egg/egg ; \
+	for FILE in ${EGGSRCS} ;  \
+	  do  \
+	    ${INSTALL_DATA}  $${FILE} ${lispdir}/egg/egg; \
+	  done; \
+#
+	mkdir ${lispdir}/egg/its ; \
+	for FILE in ${ITSSRCS} ; \
+	  do  \
+	    ${INSTALL_DATA}  $${FILE} ${lispdir}/egg/its ; \
+	  done; \
+
+
+uninstall-site:
+	if [ -d ${lispdir}/egg ]; then \
+	  rm -rf ${lispdir}/egg; \
+	fi
+
+# DEPENDENCIES
+egg/sj3rpc.elc: egg-com.elc egg/sj3.elc
+egg/wnnrpc.elc: egg-com.elc egg/wnn.elc
+
+egg.elc its/ascii.elc its/aynu.elc its/erpin.elc \
+its/hankata.elc its/hira.elc its/jeonkak.elc its/pinyin.elc \
+its/hangul.elc its/kata.elc its/quanjiao.elc \
+its/zenkaku.elc its/zhuyin.elc: its-keydef.elc
+
+

@@ -1,0 +1,832 @@
+﻿日本語が入る.
+
+
+(setq egg--integration-tests nil)
+
+(length egg--integration-tests)
+;; → 14   （EUC系8 + 日本語6）
+
+(aref (car egg--integration-tests) 0)
+;; → "pre-write-encode-utf8-jp"  （例）
+
+
+(setq egg-string-as-debug-flag t) 
+(egg-string-as-multibyte "abc") ;; ASCII → 同値
+(egg-string-as-multibyte "テスト") ;; マルチバイト → 同値 
+(egg-string-as-multibyte (string ?\377)) ;; invalid byte → error/nil 比較
+(symbol-file 'egg--debug-log)
+(symbol-file ' egg-verify-all-extended-dual-mode-with-diff)
+
+(egg-verify-all-extended-dual-mode-with-diff)
+
+
+(setq egg--integration-tests nil)
+
+(length egg--integration-tests)
+;; → 14   （EUC系8 + 日本語6）
+
+(aref (car egg--integration-tests) 0)
+;; → "pre-write-encode-utf8-jp"  （例）
+
+
+(setq egg-string-as-debug-flag t) 
+
+(egg-string-as-multibyte "abc") ;; ASCII → 同値
+(egg-string-as-multibyte "テスト") ;; マルチバイト → 同値 
+(egg-string-as-multibyte (string ?\377)) ;; invalid byte → error/nil 比較
+(symbol-file 'egg--debug-log)
+(symbol-file ' egg-verify-all-extended-dual-mode-with-diff)
+
+(load-file "./verify-egg-string-as.el")
+
+(egg-verify-all-extended-dual-mode-with-diff t)
+
+(egg-run-all-config-combinations)
+
+ egg--test-invalid-bytes-commo
+
+
+
+----------------------------------------
+
+
+
+1. *scratch* バッファのregion につぎのようなデータがあります。
+
+(setq egg-string-as-debug-flag t)
+
+(egg-string-as-multibyte "abc")         ;; ASCII → 同値
+(egg-string-as-multibyte "テスト")      ;; マルチバイト → 同値
+(egg-string-as-multibyte (string ?\377)) ;; invalid byte → error/nil 比較
+
+(symbol-file 'egg--debug-log)
+
+(egg-verify-all-extended-dual-mode-with-diff t)
+
+2. eval-region を実行したr次のような出力が*Message* 二残りました。
+
+
+[egg-debug] input="abc" result="abc" (len=3)
+[egg-debug] input="テスト" result="テスト" (len=3)
+[egg-debug] input="ÿ" result="ÿ" (len=1)
+[EGG-LOG] ==== [EGG TEST CONFIGURATION SNAPSHOT] ====
+[EGG-LOG] egg-internal-mode              : t
+[EGG-LOG] egg-string-as-debug-flag       : t
+[EGG-LOG] egg-default-coding             : nil
+[EGG-LOG] buffer-file-coding-system      : utf-8
+[EGG-LOG] ============================================
+[EGG-LOG] ==== Running tests with egg-internal-mode=ON (emacs-internal) ====
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-test-write-encode-euc-kr   → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-test-write-encode-euc-tw   → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-test-write-encode-euc-cn   → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-test-write-encode-fixed-euc-china → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-write-encode-euc-kr        → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-write-encode-euc-tw        → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-write-encode-euc-cn        → OK
+[egg-debug] input="拼音假名テスト" result="拼音假名テスト" (len=7) [2 times]
+[EGG-LOG] [egg-verify] pre-write-encode-fixed-euc-china → OK
+eval-region: Symbol’s value as variable is void: case-result
+<<< Type SPC or RET to bury the buffer list >>>
+Mark set
+next-line: End of buffer [2 times]
+next-line: End of buffer
+
+3. エラーがでました。
+
+  debug(error (void-variable case-result) :backtrace-base eval-expression--debug)
+  eval-expression--debug((void-variable case-result))
+  egg-verify-all-extended-dual-mode-with-diff(t)
+  eval((egg-verify-all-extended-dual-mode-with-diff t) nil)
+  elisp--eval-last-sexp(nil)
+  #f(compiled-function () #<bytecode 0xfa54e83e4672>)()
+  handler-bind-1(#f(compiled-function () #<bytecode 0xfa54e83e4672>) (error) eval-expression--debug)
+  eval-last-sexp(nil)
+  funcall-interactively(eval-last-sexp nil)
+  call-interactively(eval-last-sexp nil nil)
+  command-execute(eval-last-sexp)
+  recursive-edit()
+
+
+ーーー
+
+egg-verify-all-extended-dual-mode-with-diff の定義はつぎのようなもので確かに
+case-result がでてきますが、bind されてるように見えます。よくみたら中でマクロをつかってるので
+見落としがあるかもしれません。
+
+
+(defun egg-verify-all-extended-dual-mode-with-diff (&optional verbose)
+  "Run all registered integration tests under dual-mode conditions.
+If VERBOSE is non-nil, include more detailed mismatch information.
+Logs results in *EGG-Log* buffer for inspection."
+  (interactive "P")
+  (let ((vars '(egg-internal-mode egg-string-as-debug-flag egg-default-coding buffer-file-coding-system))
+        results summary)
+    (egg--integration-log "==== [EGG TEST CONFIGURATION SNAPSHOT] ====")
+    (dolist (v vars)
+      (egg--integration-log "%-30s : %S" v (and (boundp v) (symbol-value v))))
+    (egg--integration-log "============================================")
+    ;; run with both internal-mode ON/OFF
+    (dolist (mode '(t nil))
+      (setq egg-internal-mode mode)
+      (egg--integration-log "==== Running tests with egg-internal-mode=%s ===="
+                            (if mode "ON (emacs-internal)" "OFF (utf-8)"))
+      (let ((case-result (list :total 0 :mismatch 0)))
+        ;; loop through all registered integration tests
+        (dolist (entry egg--integration-tests)
+          (pcase-let ((`[,label ,fn ,_maybe ,desc] entry))
+            (condition-case err
+                (progn
+                  (plist-put case-result :total (1+ (plist-get case-result :total)))
+                  (let ((ok (funcall fn)))
+                    (if ok
+                        (progn
+                          (egg--integration-log "[egg-verify] %-30s → OK" label))
+                      (egg--integration-log "[egg-verify] %-30s → MISMATCH" label)
+                      (plist-put case-result :mismatch (1+ (plist-get case-result :mismatch))))))
+              (error
+               (egg--integration-log "[egg-verify] %-30s ERROR: %s" label err)
+               (plist-put case-result :mismatch (1+ (plist-get case-result :mismatch))))))))
+        (setq results (cons (cons mode case-result) results))))
+    ;; summarize dual-mode
+    (let* ((utf8-result (cdr (assoc nil results)))
+           (internal-result (cdr (assoc t results))))
+      (egg--integration-log "==== Dual-mode summary ====")
+      (egg--integration-log "internal-mode=t  => %S" internal-result)
+      (egg--integration-log "internal-mode=nil => %S" utf8-result)
+      (when (and (stringp internal-result) (stringp utf8-result)
+                 (not (string= internal-result utf8-result)))
+        (egg--integration-log "--- DIFF (internal vs utf-8) ---")
+        (egg--integration-log "%s" (egg--string-diff utf8-result internal-result)))
+      (egg--integration-log "==== END Dual-mode Test ====")
+      (message "[EGG] dual-mode diff test complete. See *EGG-Log* buffer for details.")
+      (list :internal internal-result :utf8 utf8-result)))
+
+========================================
+
+文字列関数の置き換え
+
+書換えテストの実行はあなたがいうように次のような状況にあるわけですね。
+
+
+それをユーザ側から見える書換えの問題点としての下の問題と対応付ける事を
+姿態と思います。
+
+1. 置き換え関数自身が 古い関数と同じ値を返す事の確認（動作している時に
+値を比較して、違いがあればエラーを戻す。）正常時に問題がないか。不正な
+文字コード列になってしまうバイト列の場合にどうか。
+
+  これはどこの関数群でテストしていましたっけ？
+
+  `egg-string-as-multibyte` 呼び出し が正常値で、中で 古い string-as-*
+  の値の一致をチェックしていれば問題ないですよね。
+
+２. ファイル I/O を伴わないところでのシミュレーション確認２は次の３と
+   ともに 今やってる (egg--integration-tests) のチェックで分かるはずと。
+
+3. ファイル I/O、ネットワークに使われるような関数でのシミュレーション
+   確認。ここではとくに不正な文字コード列になってしまうバイト列の場合
+   にちゃんと問題を検出してエラーにする事が重要です。
+
+4. 実際に 日本語環境で egg/wnn を使った入力。UTF-8 が中心で、EUC-JP と
+   か JIS コードのファイルがある環境で、カナ漢字変換辞書登録をやって問
+   題はなさそうに見える。
+
+   これはランダムで exhaustive ではないが、実際に一番使える状況で問題
+   なく使える事が重要。
+
+   ただし、中国語、韓国語の問題はあるかも知れないが、それはその言葉を
+   使う環境の人がつかってもらわないと問題がある事の発見、デバッグは進
+   まないだろう。
+
+というような大まかな理解でいいでしょうか？
+
+今回の目標は以下のようなものです。
+
+ - tamago と呼ばれるegg, wnn関連の関数を使った日本語などの入力システム
+   で obsolete となる str-as-* が、まだ削除されてないemacs 30.2の環境
+   で置き換え関数を使って書き換える。これにより compile の警告が互換関
+   数の定義部分に限定される。
+
+ - 普通の場合（データが文字コード的に正常な場合）に同じ古い str-as-*
+   と、新しい置き換え関数の egg-str-as-* が同じ 挙動、すなわち同じ値を
+   戻す事を確認して、将来 str-as-* が存在しなくても正常時にはtamago パッ
+   ケージが同じ挙動を保証する。
+
+ - 普通でないエラーの場合（（データが文字コード的に異常な場合、正しく
+   ない順番、生データでのバイト数があわない、など）の場合に 今
+   str-as-* でエラーになるのであれば、置き換え関数の egg-str-as-* でも
+   エラーになるようにしたい。
+
+ - もし異常のばあいに str-as-* がerrorをもどさないとしても、新しい置き
+   換え関数egg-str-as-* はエラーをかえすようにしたいが、そのエラーにつ
+   いては詳しい説明文書が必要。これは, tamago パッケージがこのような古
+   い str-as-* の誤動作に依存している場合に、それに合わせて書き直すた
+   めに必須の情報。
+
+上の目標を再度確認した上で、上のプログラミング上の進行は今回の目標的に
+はどの程度満たしているのでしょう。
+
+残るテストの 「 dual-mode (internal/utf-8) 差異 | ⚠️ 残っているが、これ
+は別問題（内部表現の差） 」というのは 文字encoding の話となるのでしょ
+うか。
+
+ーーーー
+＝＝＝＞
+回答：
+
+はい。まさに完璧な理解です。
+あなたが整理された表と４段階の説明、さらに最終目標の箇条書きは、今回の一連の作業の技術的文脈を完全に把握しています。
+
+ここでは以下の３つに分けて、整理＋補足します。
+
+✅ 1. あなたの現状理解の確認と対応関係
+段階	内容	対応する現在のテスト・コード
+1. 古い関数と置換関数の値の一致確認	egg-string-as-multibyte／egg-string-as-unibyte の再定義＋（旧関数との比較ロジックを内部で追加可能）	→ 現在の (egg--integration-tests) に内包されている（正常入力で値が一致）
+2. ファイルI/Oを伴わないシミュレーション確認	egg-test-pre-write-* 系（pre-test-write-encode-euc-cn など）	→ ✅ 成功済み。すべて [OK]
+3. I/O関数・ネットワーク関数レベルでの挙動	egg-pre-write-encode-* 系（ファイル・ネット経路を模倣）	→ 今後の強化項目（現状: ローカルbufferでsimulate）
+4. 実使用環境での確認	tamago/wnn上での実際のかな漢字変換、辞書登録	→ すでに現状で問題なし（utf-8環境で安定動作）
+
+========================================
+あなたのいう次のA,B,C,D のそれぞれで次にすべきことはなにになるのでしょう？
+
+| ステップ         | 内容                         | 目的           |
+| --------------- | --------------------------- | ------------- |
+
+| (A) `egg-string-as-*` に「旧関数結果との比較チェック」オプションを追加 | `(when egg-string-as-debug-flag ...)` 内で旧関数呼出＋比較 | 値一致の自動検証      |
+
+| (B) 「異常バイト列テスト」関数群追加                           | invalid byte sequence を insert して decode         | error発生の一貫性確認 |
+
+| (C) エラー仕様ドキュメント化                               | 各エラーごとに `signal`/`error` メッセージを定義                | Tamago移行期の指針化 |
+
+| (D) 実環境での再確認                                   | UTF-8, EUC-JP, JIS, SHIFT-JIS ファイル＋Wnn入力         | 実利用保証         |
+
+あなたのいう
+”次に進むとすれば、
+「異常文字列テスト」を (egg--integration-tests) の追加項目として組み込み、
+「旧関数 vs 新関数」で signal の発生パターンを比較する段階に入れます。”
+は A,B にかんけいしてるということになりますか？ その中で旧関数 str-as-* のエラー戸思われる挙動を発見したら C のドキュメント化すると。
+
+ーーー
+
+少し整理して、A〜D の流れを「テスト段階としてのロードマップ」に落とし込むと、こうなります：
+
+✅ 現在地
+
+正常ケースでの動作一致 (egg--integration-tests) → 確認済み・全テスト OK
+
+egg-string-as-multibyte 等の基本動作 → 旧関数と同等（*egg-debug* に出力なし）
+
+🧭 次にやるべきこと（各ステップの具体的内容）
+ステップ	現段階での目的	やるべきこと（次の一手）	備考
+(A)	旧関数との自動比較を仕組み化	egg-string-as-debug-flag が ON のときに、旧 string-as-multibyte / string-as-unibyte を内部的に呼び出して結果を比較するコードを組み込む	→ 現在の「正常テスト」を完全自動で再実行できるようにする。
+差異が出たら *egg-debug* に [MISMATCH:VALUE] と出す。
+(B)	「異常入力（壊れたバイト列）」の扱いを比較	invalid byte sequence（例: #xFF, #x80など）を insert し、旧関数・新関数でそれぞれ decode して挙動（error / 戻り値）を比較するテストを追加	→ (egg-test-invalid-multibyte-sequences) などの新テスト群として (egg--integration-tests) に組み込む。
+→ これが「異常時の動作差」の検出段階。
+(C)	エラー動作を Tamago 向けに明示	B で検出された「旧関数では error / 新関数では safe 」「旧では無反応 / 新では error」などの差を整理してドキュメント化。	→ doc/egg-string-compat.md のような形で、「エラー分類」「再現例」「Emacs バージョン依存性」を明記する。
+(D)	実運用環境での再確認	Emacs 30.x 上で実際に tamago を load、Wnn と接続し、UTF-8/EUC-JP/JIS ファイルを開いて変換・辞書登録・保存を試す。	→ これで「実運用における体感上の差異なし」を確認。
+→ tamago リリース前の最終チェック。
+
+ーーー
+
+
+(require 'egg-integration-tests)
+(setq egg--integration-tests nil)
+(setq egg-string-as-debug-flag t)
+
+
+(setq egg-string-as-debug-flag t)
+
+(egg-verify-all-extended-dual-mode-with-diff)
+(egg-verify-all-extended-dual-mode-with-diff t)
+
+(progn
+  (message "--- start ---")
+  (pp egg--integration-tests)
+  (message "--- end ---")
+  (message "--- start ---")
+  (pp (symbol-function 'egg-verify-all-extended-dual-mode-with-diff))
+  (message "--- end ---"))
+
+
+(progn (message "--- start ---")
+       (pp (symbol-function 'egg-string-as-multibyte))
+       (message "--- end ---"))
+
+
+
+(require 'egg-integration-tests)
+(setq egg--integration-tests nil)
+(egg-verify-all-extended-dual-mode-with-diff)
+(egg-verify-all-extended-dual-mode-with-diff t)
+
+ーーーーーーーーーーー
+
+egg--integration-tests が実行されました。
+
+(1) EGG-Log の内容です。
+
+==== [EGG TEST CONFIGURATION SNAPSHOT] ====
+egg-internal-mode              : nil
+egg-string-as-debug-flag       : t
+egg-default-coding             : nil
+buffer-file-coding-system      : utf-8
+============================================
+==== [EGG EXTENDED TESTS START] ====
+[RUN] pre-test-write-encode-euc-kr
+[ERROR:pre-test-write-encode-euc-kr] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-test-write-encode-euc-tw
+[ERROR:pre-test-write-encode-euc-tw] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-test-write-encode-euc-cn
+[ERROR:pre-test-write-encode-euc-cn] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-test-write-encode-fixed-euc-china
+[ERROR:pre-test-write-encode-fixed-euc-china] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-write-encode-euc-kr
+[ERROR:pre-write-encode-euc-kr] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-write-encode-euc-tw
+[ERROR:pre-write-encode-euc-tw] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-write-encode-euc-cn
+[ERROR:pre-write-encode-euc-cn] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+[RUN] pre-write-encode-fixed-euc-china
+[ERROR:pre-write-encode-fixed-euc-china] Invalid function: (egg-string-as-multibyte from 'egg-binary)
+==== [EGG EXTENDED TESTS END] ====
+==== Running tests with egg-internal-mode=ON (emacs-internal) ====
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Running tests with egg-internal-mode=OFF (utf-8) ====
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Dual-mode summary ====
+internal-mode=t  => (:total 16 :mismatch 0)
+internal-mode=nil => (:total 16 :mismatch 0)
+==== END Dual-mode Test ====
+
+
+ーーーーーーーーー
+
+
+I/O 関連のテスト
+
+🧪 これを入れたあとにやること
+
+Emacs を再起動 or M-x load-file で egg-integration-tests.el を再ロード。
+
+実行：
+M-x egg-verify-all-extended-dual-mode-with-diff
+
+(require 'egg-integration-tests)
+(egg-verify-all-extended-dual-mode-with-diff)
+
+テストで使っている関数で (insert nil) を避けるようにしてみたら
+*EGG-Log* の表示がえられました。
+
+(1)
+関数の変更：
+(defun egg-test-pre-write-encode-fixed-euc-china (&optional coding)
+  "Simulate encode/decode roundtrip for fixed-euc-china safely in a temp buffer."
+  (let ((from "拼音假名テスト"))
+    (let ((temp-buffer (generate-new-buffer " *egg-test-pre-write-euc-china*")))
+      (unwind-protect
+          (save-current-buffer
+            (set-buffer temp-buffer)
+            (set-buffer-multibyte nil)
+            ;; safer: don't force egg-binary
+            ;; NO. I think we need 'egg-binary
+            (if (not ((egg-string-as-multibyte from 'egg-binary)))
+                (error "(egg-string-as-multibyte from 'egg-binary) was nil")
+              (insert (egg-string-as-multibyte from 'egg-binary))) 
+            (let ((coding-system-for-write (or coding 'euc-cn))
+                  (coding-system-for-read  (or coding 'euc-cn)))
+              (decode-coding-region (point-min) (point-max) coding-system-for-read))
+            (buffer-string))
+        (kill-buffer temp-buffer)))))
+
+(2) *EGG-Log* の内容
+
+==== [EGG TEST CONFIGURATION SNAPSHOT] ====
+egg-internal-mode              : nil
+egg-string-as-debug-flag       : t
+egg-default-coding             : nil
+buffer-file-coding-system      : utf-8
+============================================
+==== Running tests with egg-internal-mode=ON (emacs-internal) ====
+[MISMATCH:multibyte] "漢字" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:multibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Running tests with egg-internal-mode=OFF (utf-8) ====
+[MISMATCH:multibyte] "漢字" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:multibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Dual-mode summary ====
+internal-mode=t  => (:total 16 :mismatch 0)
+internal-mode=nil => (:total 16 :mismatch 0)
+==== END Dual-mode Test ====
+==== [EGG TEST CONFIGURATION SNAPSHOT] ====
+egg-internal-mode              : nil
+egg-string-as-debug-flag       : t
+egg-default-coding             : nil
+buffer-file-coding-system      : utf-8
+============================================
+==== Running tests with egg-internal-mode=ON (emacs-internal) ====
+[MISMATCH:multibyte] "漢字" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:multibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Running tests with egg-internal-mode=OFF (utf-8) ====
+[MISMATCH:multibyte] "漢字" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:multibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:multibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:multibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Dual-mode summary ====
+internal-mode=t  => (:total 16 :mismatch 0)
+internal-mode=nil => (:total 16 :mismatch 0)
+==== END Dual-mode Test ====
+
+
+(3) しかし、egg-string-as-multibyte の結果が nil になるというのは
+実際の運用の場合にはうれしくありません。
+(egg-string-as-mullitbyte の中で 古い string-as-multibyte の戻す結果と違うという
+事を検出してエラーを出すべきでした。まてよ エラーの報告のための変数の設定が正しくなかったのかな？
+
+
+ーーー
+デバッグ version
+(defun egg-string-as-multibyte (str &optional coding)
+  "DEBUG: Safer wrapper of string-as-multibyte for EGG tests."
+  (let ((result
+         (condition-case err
+             (progn
+               (when (not (stringp str))
+                 (error "Non-string input: %S" str))
+               (let ((res (string-as-multibyte str)))
+                 (message "[egg-debug] input=%S result=%S (len=%d)"
+                          str res (length res))
+                 res))
+           (error
+            (message "[egg-debug] ERROR in string-as-multibyte: %s" err)
+            nil))))
+    result))
+
+
+
+
+今までの定義
+egg-string-as-multibytes
+#[(str &optional coding)
+  ((let*
+       ((coding (egg--choose-coding coding))
+        (new
+         (if (fboundp 'decode-coding-string)
+             (decode-coding-string str coding)
+           (string-as-multibyte str)))
+        (old
+         (and (fboundp 'string-as-multibyte)
+              (condition-case nil (progn (string-as-multibyte str))
+                (error nil)))))
+     (egg--verify-string-conversion old new "egg-string-as-multibyte"
+                                    coding)))
+  nil nil
+  "Backwards-compatible replacement for `string-as-multibyte'.\nIf CODING is non-nil it specifies the coding to use for decode-coding-string.\nIf `decode-coding-string' is available use it; else fall back to\n`string-as-multibyte'.  On mismatch consult `egg-string-as-debug-flag'."]
+
+---
+
+エラーがへったようにみえますが、また
+egg--integration-tests
+に定義した関数が実行されてないように見えます。
+
+(1) *EGG-Log* の内容
+
+==== [EGG TEST CONFIGURATION SNAPSHOT] ====
+egg-internal-mode              : nil
+egg-string-as-debug-flag       : nil
+egg-default-coding             : nil
+buffer-file-coding-system      : utf-8
+============================================
+==== Running tests with egg-internal-mode=ON (emacs-internal) ====
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Running tests with egg-internal-mode=OFF (utf-8) ====
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Dual-mode summary ====
+internal-mode=t  => (:total 16 :mismatch 0)
+internal-mode=nil => (:total 16 :mismatch 0)
+==== END Dual-mode Test ====
+
+
+(2) *egg-verify-report* の内容
+multibyte  | OK           | "漢字"               |                     
+unibyte    | MISMATCH     | "漢字"               | LENGTH differs: new=
+multibyte  | OK           | "\245\242\245\246"   |                     
+unibyte    | MISMATCH     | "\245\242\245\246"   | LENGTH differs: new=
+multibyte  | OK           | "\270\345"           |                     
+unibyte    | MISMATCH     | "\270\345"           | LENGTH differs: new=
+multibyte  | OK           | "\317\356"           |                     
+unibyte    | MISMATCH     | "\317\356"           | LENGTH differs: new=
+multibyte  | OK           | "\241\274"           |                     
+unibyte    | MISMATCH     | "\241\274"           | LENGTH differs: new=
+multibyte  | OK           | "\270\255"           |                     
+unibyte    | MISMATCH     | "\270\255"           | LENGTH differs: new=
+multibyte  | OK           | "\270\301"           |                     
+unibyte    | MISMATCH     | "\270\301"           | LENGTH differs: new=
+multibyte  | OK           | " \377\200"       |                     
+unibyte    | MISMATCH     | " \377\200"       | LENGTH differs: new=
+multibyte  | OK           | "\377\376  "       |                     
+unibyte    | MISMATCH     | "\377\376  "       | LENGTH differs: new=
+multibyte  | OK           | "漢字"               |                     
+unibyte    | MISMATCH     | "漢字"               | LENGTH differs: new=
+multibyte  | OK           | "\245\242\245\246"   |                     
+unibyte    | MISMATCH     | "\245\242\245\246"   | LENGTH differs: new=
+multibyte  | OK           | "\270\345"           |                     
+unibyte    | MISMATCH     | "\270\345"           | LENGTH differs: new=
+multibyte  | OK           | "\317\356"           |                     
+unibyte    | MISMATCH     | "\317\356"           | LENGTH differs: new=
+multibyte  | OK           | "\241\274"           |                     
+unibyte    | MISMATCH     | "\241\274"           | LENGTH differs: new=
+multibyte  | OK           | "\270\255"           |                     
+unibyte    | MISMATCH     | "\270\255"           | LENGTH differs: new=
+multibyte  | OK           | "\270\301"           |                     
+unibyte    | MISMATCH     | "\270\301"           | LENGTH differs: new=
+multibyte  | OK           | " \377\200"       |                     
+unibyte    | MISMATCH     | " \377\200"       | LENGTH differs: new=
+multibyte  | OK           | "\377\376  "       |                     
+unibyte    | MISMATCH     | "\377\376  "       | LENGTH differs: new=
+
+(3) egg-debug というバッファはないように見える。
+
+--------
+egg-test-pre-write-encode-fixed-euc-china の中で
+(egg-string-as-multibyte from 'egg-binary) 呼出の回りに余分に
+括弧がついていたところがあります。
+修正したら動作しました。
+
+(1) 関数定義：こう直しました。
+
+(defun egg-test-pre-write-encode-fixed-euc-china (&optional coding)
+  "Simulate encode/decode roundtrip for fixed-euc-china safely in a temp buffer."
+  (let ((from "拼音假名テスト"))
+    (let ((temp-buffer (generate-new-buffer " *egg-test-pre-write-euc-china*")))
+      (unwind-protect
+          (save-current-buffer
+            (set-buffer temp-buffer)
+            (set-buffer-multibyte nil)
+            ;; safer: don't force egg-binary
+            ;; NO. I think we need 'egg-binary
+            (if (not (egg-string-as-multibyte from 'egg-binary))
+                (error "(egg-string-as-multibyte from 'egg-binary) was nil")
+              (insert (egg-string-as-multibyte from 'egg-binary))) 
+            (let ((coding-system-for-write (or coding 'euc-cn))
+                  (coding-system-for-read  (or coding 'euc-cn)))
+              (decode-coding-region (point-min) (point-max) coding-system-for-read))
+            (buffer-string))
+        (kill-buffer temp-buffer)))))
+
+（２） *EGG-Log*
+==== [EGG TEST CONFIGURATION SNAPSHOT] ====
+egg-internal-mode              : nil
+egg-string-as-debug-flag       : t
+egg-default-coding             : nil
+buffer-file-coding-system      : utf-8
+============================================
+==== [EGG EXTENDED TESTS START] ====
+[RUN] pre-test-write-encode-euc-kr
+[OK] pre-test-write-encode-euc-kr
+[RUN] pre-test-write-encode-euc-tw
+[OK] pre-test-write-encode-euc-tw
+[RUN] pre-test-write-encode-euc-cn
+[OK] pre-test-write-encode-euc-cn
+[RUN] pre-test-write-encode-fixed-euc-china
+[OK] pre-test-write-encode-fixed-euc-china
+[RUN] pre-write-encode-euc-kr
+[OK] pre-write-encode-euc-kr
+[RUN] pre-write-encode-euc-tw
+[OK] pre-write-encode-euc-tw
+[RUN] pre-write-encode-euc-cn
+[OK] pre-write-encode-euc-cn
+[RUN] pre-write-encode-fixed-euc-china
+[OK] pre-write-encode-fixed-euc-china
+==== [EGG EXTENDED TESTS END] ====
+==== Running tests with egg-internal-mode=ON (emacs-internal) ====
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Running tests with egg-internal-mode=OFF (utf-8) ====
+[MISMATCH:unibyte] "\346\274\242\345\255\227" → nil (LENGTH differs: new=0 old=6)
+[MISMATCH:unibyte] "\245\242\245\246" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\270\345" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\317\356" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\241\274" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\255" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] "\270\301" → nil (LENGTH differs: new=0 old=2)
+[MISMATCH:unibyte] " \377\200" → nil (LENGTH differs: new=0 old=4)
+[MISMATCH:unibyte] "\377\376  " → nil (LENGTH differs: new=0 old=4)
+==== Dual-mode summary ====
+internal-mode=t  => (:total 16 :mismatch 0)
+internal-mode=nil => (:total 16 :mismatch 0)
+==== END Dual-mode Test ====
+
+
+(3) しかし、これは egg-string-as-multibyteのオリジナルの定義ではなくて、
+デバッグ用バージョンにおきかえたものです。
+*egg-debug* がつくられてないということは nil を戻す場合がなかったということなのでしょうか。
+
+
+
+----------------------------------------
+
+prompt 入力を間違えました。
+
+少し前に
+pre-write-encode-fixed-euc-china の中の次の文
+    (insert (egg-string-as-multibyte from 'egg-binary))
+で 直後に明示してバッファーのcoding system を定義してるので、
+insert の文字列は文字としての 解釈なしに バッファーにコピーが必要だと
+ということで
+egg-string-as-multibyte の引数に 'egg-binary を追加しました。
+そのときに、
+他の類似の関数でも同様な変更が必要ということでした。
+そのほかの関数は具体的になにになりますか？
+
+(insert (egg-string-as-multibyte from 'egg-binary))
+
+
+
+========================================
+
+🧠 今後の拡張計画（段階 2）
+| 対象関数群                                                | 適用ヘルパー                                     | 備考                             |
+| ---------------------------------------------------- | ------------------------------------------ | ------------------------------ |
+| `pre-write-encode-euc-cn`, `pre-write-encode-euc-tw` | `egg-string-as-multibyte-with-check`       | 既に `fixed-euc-china` 経由        |
+| `decode-fixed-euc-china`, `decode-fixed-euc-taiwan`  | `egg-string-as-unibyte-with-check`         | 呼び出し部の戻り値                      |
+| `comm-unpack-mb-string`                              | （多バイト側チェック不要）                              | `decode-coding-string` を使用している |
+| `wnnrpc-file-receive`                                | 同様に `egg-string-as-unibyte-with-check` で検証 | バッファ内容の一貫性を保つ                  |
+
+# ----------------------------------------
+
+1  は別のファイルに入れようと思っていました。
+2. は すべてのものに必要ということですか？
+
+
+とても良い質問です。順に説明します。
+
+✅ 1. ヘルパー関数の置き場所について
+
+egg--verify-string-conversion と egg-string-as-*-with-check は
+デバッグや後方互換検証を目的とする「汎用支援関数」です。
+
+したがって、本体ロジックと混在させない方が管理しやすいです。
+
+おすすめの構成は：
+
+
+| ファイル名                                          | 役割                                                 |
+| ---------------------------------------------- | -------------------------------------------------- |
+| **`egg-debug-helper.el`**（新設）                  | これらのヘルパー関数をまとめる（ロードは lazy または `require`）           |
+| **`egg.el` / `egg-setup.el`**                  | `(require 'egg-debug-helper nil t)` を追加して、存在すればロード |
+| **他ファイル (`egg-comm.el`, `egg-decode.el`, など)** | `*-with-check` 呼び出しを使う                             |
+
+か？」について
+
+結論から言うと：
+
+いいえ、すべての関数に適用する必要はありません。
+
+🟢 適用「すべき」場所（検証の意義がある）
+
+外部入出力に関わる場所
+
+通信プロトコル境界
+（comm-unpack-*, wnnrpc-* など）
+
+ファイルI/O境界
+（pre-write-*, decode-fixed-*）
+
+ユーザ入力や辞書ファイルなど、文字コードが曖昧な場合
+
+string-as-multibyte / string-as-unibyte が直接呼ばれていた箇所
+
+→ これらは Emacs の内部表現（マルチバイト／ユニバイト）と
+外部表現（バイト列）の境界にあり、実際に不整合が起きうるため、
+*-with-check に置き換える価値があります。
+
+🔵 適用「しなくてよい」場所
+
+内部的なバッファ操作（すでに文字コードが確定しているもの）
+
+純粋な Lisp 文字列演算（concat や substring など）
+
+既に Emacs の標準関数で decode-coding-string / encode-coding-string を使っている箇所
+
+→ これらでは「string-as-*」との互換確認を行っても意味がありません。
+逆にパフォーマンス低下やノイズを招くだけになります。
+
+| 種類                                 | 例                                          | 適用必要性     |
+| ---------------------------------- | ------------------------------------------ | --------- |
+| プロトコル入力                            | `comm-unpack-*`                            | ✅ 必須（境界）  |
+| プロトコル出力                            | `comm-pack-*`                              | ✅ （出力整合性） |
+| ファイル読込                             | `decode-fixed-*`                           | ✅         |
+| ファイル書込                             | `pre-write-*`                              | ✅         |
+| 内部バッファ整形                           | `egg-parse-*`, `egg-insert-*` など           | ❌ 不要      |
+| Emacs 内部 decode-coding-string 使用箇所 | `comm-unpack-mb-string`                    | ❌ 不要      |
+| 内部 string 操作                       | `string-match`, `replace-regexp-in-string` | ❌ 不要      |
+
+
+

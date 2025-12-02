@@ -1,0 +1,29 @@
+Installation Instructions
+=========================
+
+By tamago.rebirh@gmail.com
+
+
+0) autoconf (maybe prompted to run autoupdate !)
+
+1) ./configure --datadir=/usr/local/share
+
+   Under Debian GNU/Linux default site-lisp is stored in /usr/local/share/emacs/site-lisp/egg.
+   Note: datadir is the prefix before "emacs/site-lisp/egg"
+   Thus I pass --datadir=/usr/local/share
+
+2) make
+3) make install (as root)
+
+   Curret Makefile no longer copies .elc files.
+
+Please see
+https://www.gnu.org/software/emacs/manual/html_node/elisp/Startup-Summary.html
+
+Or if you do not want to edit your system files,
+you can add to ~/.emacs as follows:
+
+(add-to-list 'load-path "/usr/local/share/emacs/site-lisp/egg")
+
+;;; Note that the following may cause cyclic loading. In that case, don't load the following file.
+;;; (load-file "/usr/local/share/emacs/site-lisp/egg/leim-list.el")

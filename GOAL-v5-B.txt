@@ -1,0 +1,42 @@
+次は (B)「異常バイト列テスト」(invalid byte sequence tests) の実装フェーズ.
+
+🎯 ステップ (B) の目的
+目的
+
+異常な（＝正しくデコードできない）バイト列を Emacs に与えた際の挙動を確認し、
+EGG の内部変換関数（egg-string-as-multibyte など）が 一貫して正しくエラーを出す ことを検証します。
+
+つまり：
+
+Emacs 標準の decode-coding-string と EGG 拡張関数が
+同じエラーを出すことを確認する。
+
+無効な EUC-JP / EUC-KR / EUC-CN / EUC-TW バイト列をテストデータとして利用。
+
+ログに「OK」「ERROR」「MISMATCH（標準と挙動が異なる）」を出力。
+
+🧩 新しい関数群の概要
+
+以下のようなテスト関数を定義します（場所：egg-integration-tests.el）。
+
+関数名	内容	対応するエンコーディング
+egg-test-invalid-bytes-euc-jp	EUC-JP の不正シーケンステスト	euc-jp
+egg-test-invalid-bytes-euc-kr	EUC-KR の不正シーケンステスト	euc-kr
+egg-test-invalid-bytes-euc-cn	EUC-CN の不正シーケンステスト	euc-cn
+egg-test-invalid-bytes-euc-tw	EUC-TW の不正シーケンステスト	euc-tw
+
+
+| 関数名                             | 内容                 | 対応するエンコーディング |
+| ------------------------------- | ------------------ | ------------ |
+| `egg-test-invalid-bytes-euc-jp` | EUC-JP の不正シーケンステスト | euc-jp       |
+| `egg-test-invalid-bytes-euc-kr` | EUC-KR の不正シーケンステスト | euc-kr       |
+| `egg-test-invalid-bytes-euc-cn` | EUC-CN の不正シーケンステスト | euc-cn       |
+| `egg-test-invalid-bytes-euc-tw` | EUC-TW の不正シーケンステスト | euc-tw       |
+
+
+| 関数名                             | 内容                 | 対応するエンコーディング |
+| ------------------------------- | ------------------ | ------------ |
+| `egg-test-invalid-bytes-euc-jp` | EUC-JP の不正シーケンステスト | euc-jp       |
+| `egg-test-invalid-bytes-euc-kr` | EUC-KR の不正シーケンステスト | euc-kr       |
+| `egg-test-invalid-bytes-euc-cn` | EUC-CN の不正シーケンステスト | euc-cn       |
+| `egg-test-invalid-bytes-euc-tw` | EUC-TW の不正シーケンステスト | euc-tw       |

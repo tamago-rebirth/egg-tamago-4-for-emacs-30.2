@@ -1,0 +1,69 @@
+Emacs 30.2's decode-coding-string is very lenient.
+
+🧭 What this means for your invalid-byte tests
+
+There are now two distinct verification goals:
+
+Purpose	What we can still test
+
+A. Error consistency	Only meaningful in older Emacs (≤ 28). Your version doesn’t error.
+
+B. “Decode as-is” consistency	Whether both decode-coding-string and egg-string-as-* yield the same literal “raw” fallback result.
+
+
+Note 1: Emacs 30.2's decode-coding-string is very lenient.
+It returns SOMETHING which are visible and stands out as warning place
+holder in textual output even if the given string is invalid sequence in the given
+coding system.
+I believe this is to avoid the interruption of the normal program
+flow, and still reports an visible anomaly.
+
+Examples
+
+(decode-coding-string (string #xA4 #x20 #xFF) 'euc-jp)
+;; ⇒ "？"
+"¤ ÿ"
+
+
+(decode-coding-string (string #x8F) 'euc-jp)
+;; ⇒ signals error: "Invalid multibyte sequence"
+;; No error under emacs 30.2.
+\217
+
+;; Test 1 – invalid UTF-8 continuation
+(decode-coding-string (string #xE3 #x81) 'utf-8)
+returned "ã"
+
+;; Test 2 – invalid EUC-JP 3-byte header truncated
+(decode-coding-string (string #x8F #xA2) 'euc-jp)
+returned "ã"
+
+
+;; Test 3 – invalid EUC-TW plane header truncated
+(decode-coding-string (string #x8E #xA2) 'euc-tw)
+returned "¢"
+
+
+;;This input is invalid for `iso-8859-1`, but Emacs will handle it without an error.
+;; It replaces the invalid byte `\376` with a placeholder.
+(decode-coding-string "\376\377" 'iso-8859-1)
+returned (not the expected?  #("  " 0 2 (charset iso-8859-1)))
+#("þÿ" 0 2 (charset iso-8859-1))
+
+Whether the returned character strings are OK depend on
+application.
+
+Note 2:
+;; This will signal a `coding-system-error` because `not-a-coding-system` is invalid.
+(decode-coding-string "hello" 'not-a-coding-system)
+
+Emacs-Lisp manual says:
+(decode-coding-string "Gr\374ss Gott" 'latin-1)
+     ⇒ #("Grüss Gott" 0 9 (charset iso-8859-1))
+
+But actually emacs-30.2 returned:
+#("Grüss Gott" 0 10 (charset iso-8859-1))
+
+Note the difference of 9 and 10 in the expected and returned result.
+(This was reported to emacs-bug and the document will be modified.)
+
