@@ -25,6 +25,9 @@
 
 ;;; Commentary:
 
+Changed its-define-aynu into a defun.
+The argument to a call ofits-define-aynu needed to be changed into
+a list of QUOTED pairs.
 
 ;;; Code:
 
@@ -49,6 +52,54 @@
 
 (defvar its-aynu-kick-conversion-on-space nil "*Start conversion on SPACE")
 
+;;; Ouch. I have no idea why I get undefined its-define-aynu if I try
+;;; to remove eval-when-compile.
+;;;
+;;; defmacro should expand when this file is first read/load. No?
+;;;
+;;; Turns out there is a circular dependency (!)
+;;;
+;;; its-define-aynu (the macro) is defined using defmacro.
+;;;
+;;; But its-define-aynu (the macro) calls its-defrule-aynu (a
+;;; function) during its expansion its-defrule-aynu (the function) is
+;;; defined before the macro, but it calls its-define-state-aynu
+;;; (another function)
+;;;
+;;; Here's the critical part: its-defrule-aynu needs to be available
+;;; at macro-expansion time because the macro its-define-aynu
+;;; generates calls to it.  When you have eval-when-compile wrapping
+;;; all these definitions:
+;;;
+;;; All the helper functions (its-define-state-aynu, its-defrule-aynu)
+;;; are defined at compile time The macro its-define-aynu is defined
+;;; at compile time When the macro is expanded (also at compile time),
+;;; its-defrule-aynu is already available
+;;;
+;;; When you remove eval-when-compile:
+;;;
+;;; The functions are defined at load time.  The macro is defined at
+;;; load time.  But when Emacs tries to expand the macro during
+;;; loading (when it encounters (its-define-aynu ...)), it tries to
+;;; generate code that calls its-defrule-aynu However,
+;;; its-defrule-aynu hasn't been defined yet in the compilation
+;;; environment
+;;;
+;;; The original solution: Keep eval-when-compile for the helper
+;;; functions and the macro definition, or use eval-and-compile
+;;; instead, which ensures the code is available in both compile-time
+;;; and load-time environments:
+;;;
+;;; But I wanted to remove eval-when-compile, etc. so that I can fix
+;;; emacs-lisp files during runtime and simply reload the modified
+;;; file for ease of debugging. eval-when-compile and the cirucular
+;;; dependency sometimes make it very difficult to fix emacs-lisp
+;;; files the fly and I have to re-load emacs completely. That is,
+;;; quit and restart emacs.
+;;;
+;;; Solution: I changed its-define-aynu into a defune from defmacro.
+;;;
+
   (defun its-define-state-aynu (input i-tail output o-tail otherwise)
     "Define following rules:
 INPUT + I-TAIL            --> OUTPUT + O-TAIL
@@ -70,6 +121,8 @@ INPUT + I-TAIL + OTHERWISE  (see `its-defrule-otherwise')."
       (its-defrule-otherwise state nil "[u]" -3)
 )
 
+;;; -------------
+
   (defconst its-aynu-tail-alist
     (let ((common '(("k" "ㇰ" (("ッ" "[k]"  -1)))
 		    ("s" "ㇱ" (("ッ" "[s]"  -1) (nil "[h]" -2)))
@@ -82,31 +135,20 @@ INPUT + I-TAIL + OTHERWISE  (see `its-defrule-otherwise')."
 	(?e ("h" "ㇸ") ("x" "ㇸ") ("r" "ㇾ") ,@common)
 	(?o ("h" "ㇹ") ("x" "ㇹ") ("r" "ㇿ") ,@common))))
 
-  (defun its-defrule-aynu (conso vowel output)
-    (let ((input (concat conso vowel))
-	  (tails (and vowel (cdr (assq (aref vowel 0) its-aynu-tail-alist)))))
-      (its-defrule input output)
-      (while tails
-	(its-define-state-aynu input (caar tails) output (nth 1 (car tails))
-			       (nth 2 (car tails)))
-	(setq tails (cdr tails)))))
+;;; ---------------
 
-  (defmacro its-define-aynu (&rest rules)
-    (let ((defs (list 'progn))
-	  conso vowels output)
-      (while rules
-	(setq vowels '(nil "a" "i" "u" "e" "o")
-	      conso  (caar rules)
-	      output (cdar rules)
-	      rules (cdr rules))
-	(while output
-	  (when (car output)
-	    (setq defs (cons `(its-defrule-aynu ,conso ,(car vowels)
-						,(car output))
-			     defs)))
-	  (setq output (cdr output)
-		vowels (cdr vowels))))
-      (nreverse defs)))
+;;; Turns the defmacro into a more friendly defun.
+;;; This required its argument list as QUOTED pairs.
+
+(defun its-define-aynu (&rest rules)
+  (dolist (rule rules)
+    (let* ((conso (car rule))
+           (outputs (cdr rule))
+           (vowels '(nil "a" "i" "u" "e" "o")))
+      (cl-loop for output in outputs
+               for vowel in vowels
+               when output
+               do (its-defrule-aynu conso vowel output)))))
 
   (defun its-defrule-aynu-override-yu (conso)
     (let ((output (its-get-output (its-goto-state conso)))
@@ -142,28 +184,31 @@ INPUT + I-TAIL + OTHERWISE  (see `its-defrule-otherwise')."
 		   ("wa" "ヮ")))
     (its-defrule (concat "x" (car small)) (cadr small)))
 
+;;; Turn the data list as quoted list.  This was necessitated due to
+;;; the change of its-define-aynu as defun instead of defmacro.
+;;;
   (its-define-aynu
-   (""   nil	"ア"   "イ"   "ウ"   "エ"   "オ")
-   ("k"  "ㇰ"		"カ"   "キ"   "ク"   "ケ"   "コ")
-   ("g"  "グ"   "ガ"   "ギ"   "グ"   "ゲ"   "ゴ")
-   ("s"  "ㇲ"		"サ"   "シ"   "ス"   "セ"   "ソ")
-   ("z"  nil    "ザ"   "ジ"   "ズ"   "ゼ"   "ゾ")
-   ("vs" nil    nil    nil    nil    "セ゚"   nil)
-   ("sh" "シャ" "シャ" "シ"   "シュ" "シェ" "ショ")
-   ("j"  nil    "ジャ" "ジ"   "ジュ" "ジェ" "ジョ")
-   ("t"  "ッ"   "タ"   "チ"   "トゥ" "テ"   "ト")
-   ("vt" nil    nil    nil    "ツ゚"   nil    "ト゚")
-   ("d"  nil    "ダ"   "ヂ"   "ヅ"   "デ"   "ド")
-   ("c"  "ッ"   "チャ" "チ"   "チュ" "チェ" "チョ")
-   ("ch" "ッ"   "チャ" "チ"   "チュ" "チェ" "チョ")
-   ("n"  "ン"   "ナ"   "ニ"   "ヌ"   "ネ"   "ノ")
-   ("h"  "ㇵ"   "ハ"   "ヒ"   "フ"   "ヘ"   "ホ")
-   ("b"  nil    "バ"   "ビ"   "ブ"   "ベ"   "ボ")
-   ("p"  "ㇷ゚"   "パ"   "ピ"   "プ"   "ペ"   "ポ")
-   ("m"  "ㇺ"   "マ"   "ミ"   "ム"   "メ"   "モ")
-   ("y"  "ィ"   "ヤ"   "ィ"   "ユ"   "イェ" "ヨ")
-   ("r"  "ㇽ"   "ラ"   "リ"   "ル"   "レ"   "ロ")
-   ("w"  "ゥ"   "ワ"   "ウィ" "ゥ"   "ウェ" "ウォ"))
+   '(""   nil	"ア"   "イ"   "ウ"   "エ"   "オ")
+   '("k"  "ㇰ"		"カ"   "キ"   "ク"   "ケ"   "コ")
+   '("g"  "グ"   "ガ"   "ギ"   "グ"   "ゲ"   "ゴ")
+   '("s"  "ㇲ"		"サ"   "シ"   "ス"   "セ"   "ソ")
+   '("z"  nil    "ザ"   "ジ"   "ズ"   "ゼ"   "ゾ")
+   '("vs" nil    nil    nil    nil    "セ゚"   nil)
+   '("sh" "シャ" "シャ" "シ"   "シュ" "シェ" "ショ")
+   '("j"  nil    "ジャ" "ジ"   "ジュ" "ジェ" "ジョ")
+   '("t"  "ッ"   "タ"   "チ"   "トゥ" "テ"   "ト")
+   '("vt" nil    nil    nil    "ツ゚"   nil    "ト゚")
+   '("d"  nil    "ダ"   "ヂ"   "ヅ"   "デ"   "ド")
+   '("c"  "ッ"   "チャ" "チ"   "チュ" "チェ" "チョ")
+   '("ch" "ッ"   "チャ" "チ"   "チュ" "チェ" "チョ")
+   '("n"  "ン"   "ナ"   "ニ"   "ヌ"   "ネ"   "ノ")
+   '("h"  "ㇵ"   "ハ"   "ヒ"   "フ"   "ヘ"   "ホ")
+   '("b"  nil    "バ"   "ビ"   "ブ"   "ベ"   "ボ")
+   '("p"  "ㇷ゚"   "パ"   "ピ"   "プ"   "ペ"   "ポ")
+   '("m"  "ㇺ"   "マ"   "ミ"   "ム"   "メ"   "モ")
+   '("y"  "ィ"   "ヤ"   "ィ"   "ユ"   "イェ" "ヨ")
+   '("r"  "ㇽ"   "ラ"   "リ"   "ル"   "レ"   "ロ")
+   '("w"  "ゥ"   "ワ"   "ウィ" "ゥ"   "ウェ" "ウォ"))
 
   (dolist (yu '("k" "g" "s" "z" "sh" "j" "t" "d"
 		"c" "ch" "n" "h" "b" "p" "m" "r"))
@@ -220,7 +265,7 @@ INPUT + I-TAIL + OTHERWISE  (see `its-defrule-otherwise')."
   (its-defrule   "z,"   "‥")	(its-defrule   "z<"   "≦")
   (its-defrule   "z."   "…")	(its-defrule   "z>"   "≧")
   (its-defrule   "z/"   "・")	(its-defrule   "z?"   "∞")
-  )
+ )
 
 (define-its-state-machine-append its-aynu-map
   (if its-aynu-enable-double-n
