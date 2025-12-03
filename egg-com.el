@@ -555,10 +555,10 @@
 
     ;; Insert converted-to-multibyte text.  Let helper pick coding-system
     ;; (defaults to buffer-file-coding-system or 'emacs-internal).
-    ;; TODO/FIXME, use uninterprted coding because we encode on the following line ourselves!
+    ;; TODO/FIXME, use uninterpreted coding because we encode on the following line ourselves!
     (insert (egg-string-as-multibyte from 'egg-binary))
     (encode-fixed-euc-china-region 1 (point-max) type)
-    nil))  ;;; どこかで () のマッチがまちがってる FIXME
+    nil))  ;;; どこかで () のマッチがまちがってた FIXED
 
 (defun pre-write-encode-euc-cn (from to)
   (pre-write-encode-fixed-euc-china from to 'cn))

@@ -4,16 +4,17 @@ KAWABATA, Taichi  <kawabata@exa.onlab.ntt.co.jp>
 MORIOKA Tomohiko  <tomo@etl.go.jp>
 	Use of custom.
 
-NIIBE Yutaka <gniibe@chroot.org>
+NIIBE Yutaka <gniibe@m17n.org>
 	Design a part of ITS programming.
 	Wrote ITS:
 	    its.el
 	    its/hira.el
-	Wrote tamago.el, menudiag.el, tamago-cnv.el, tamago-comm.el,
-	and tamago-mlh.el.
+	Wrote egg.el, menudiag.el, egg-cnv.el, egg-com.el,
+	and egg-mlh.el.
 	Wrote backend conversion engine interface:
-	    SJ3: tamago-lib/sj3.el, tamago-lib/sj3rpc.el,
-	    WNN: tamago-lib/wnn.el, and tamago-lib/wnnrpc.el.
+	    ANTHY: egg/anthy.el, egg/anthyipc.el, 
+	    SJ3: egg/sj3.el, egg/sj3rpc.el,
+	    WNN: egg/wnn.el, and egg/wnnrpc.el.
 
 KATAYAMA Yoshio <kate@pfu.co.jp>
 	Design ITS programming.
@@ -26,8 +27,7 @@ Satoru Tomura <tomura@etl.go.jp>
 	Suggestion around how to write code in LISP.
 
 Hisashi Miyashita <himi@bird.scphys.kyoto-u.ac.jp>
-	Wrote CCL routines in tamago-com.el.
-
+	Wrote CCL routines in egg-com.el.
 
 ---
 
@@ -47,5 +47,9 @@ Chiaki Ishikawa modified the code to install and run under emacs 30.2
        There were a few issues concerning the use of array as obarray,
        which is used as poor man's hash table. Fixed that by
        initializing the array with proper value.
-       
 
+       I tested this with basically using Japanese
+       romaji->katakana->kanji string input using egg/tamago with
+       FreeWnn server backend.
+       Support for other lanauge input is not tested much except that
+       they compile, etc.

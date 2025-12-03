@@ -94,10 +94,12 @@ a list of QUOTED pairs.
 ;;; emacs-lisp files during runtime and simply reload the modified
 ;;; file for ease of debugging. eval-when-compile and the cirucular
 ;;; dependency sometimes make it very difficult to fix emacs-lisp
-;;; files the fly and I have to re-load emacs completely. That is,
-;;; quit and restart emacs.
+;;; files on the fly and I have to re-load emacs completely. That is,
+;;; quit and restart emacs. Very inconvenient.
 ;;;
 ;;; Solution: I changed its-define-aynu into a defune from defmacro.
+;;; I needed to turn the argument to a list of quoted pairs, but that
+;;; is a small price to pay for the convenience.
 ;;;
 
   (defun its-define-state-aynu (input i-tail output o-tail otherwise)
